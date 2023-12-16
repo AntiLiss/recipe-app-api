@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from rest_framework import generics, authentication, permissions
 from rest_framework.views import APIView
+from rest_framework import viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.settings import api_settings
@@ -45,14 +46,10 @@ class CreateTokenView(APIView):
 
 
 # Retrieve and update user profile explicitly via APIView
-class ManageUserAPIView(APIView):
+class ManageUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [authentication.TokenAuthentication]
     serializer_class = UserSerializer
-    permission_classes = [
-        permissions.IsAuthenticated,
-    ]
-    authentication_classes = [
-        authentication.TokenAuthentication,
-    ]
 
     def get(self, request):
         user = request.user
@@ -78,9 +75,9 @@ class ManageUserAPIView(APIView):
 
 # The same via generic view
 # class ManageUserView(generics.RetrieveUpdateAPIView):
+#     permission_classes = [permissions.IsAuthenticated]
+#     authentication_classes = [authentication.TokenAuthentication]
 #     serializer_class = UserSerializer
-#     authentication_classes = [authentication.TokenAuthentication,]
-#     permission_classes = [permissions.IsAuthenticated,]
 
 #     def get_object(self):
 #         return self.request.user

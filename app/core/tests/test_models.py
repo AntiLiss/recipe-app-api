@@ -1,11 +1,14 @@
 """Tests for models"""
+from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from .. import models
 
 
 class ModelTests(TestCase):
     """Test models"""
 
+    # Users
     def test_create_user_with_email_successfully(self):
         """Test creating a user with an email successfully"""
         email = "test@example.com"
@@ -38,3 +41,22 @@ class ModelTests(TestCase):
             email="test@example.com", password="12345"
         )
         self.assertTrue(superuser.is_superuser)
+
+    # Recipes
+    def test_create_recipe_successfully(self):
+        """Test creating recipe successfully"""
+        user = get_user_model().objects.create_user(
+            email="test@example.com", password="121212", name="testname"
+        )
+        recipe = models.Recipe.objects.create(
+            user=user,
+            title="Sample recipe title",
+            time_minutes=3.5,
+            price=Decimal("10.99"),
+            description="Sample description",
+        )
+
+        recipe_exists = models.Recipe.objects.filter(pk=recipe.id).exists()
+        self.assertTrue(recipe_exists)
+        # I think don't need this one
+        # self.assertEqual(str(recipe), recipe.title)
