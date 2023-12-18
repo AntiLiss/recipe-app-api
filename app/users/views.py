@@ -23,8 +23,8 @@ class RegisterUserView(APIView):
 
 
 # The same via generic view
-# class RegisterUserView(generics.CreateAPIView):
-#     serializer_class = UserSerializer
+class RegisterUserView(generics.CreateAPIView):
+    serializer_class = UserSerializer
 
 
 # Create token explicitly via APIView

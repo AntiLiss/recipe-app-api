@@ -85,7 +85,82 @@ class PrivateRecipeAPITests(TestCase):
         recipe = create_recipe(user=self.user)
         url = get_detail_url(recipe.id)
         res = self.client.get(url)
-
         recipe_serializer = RecipeDetailSerializer(instance=recipe)
+
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, recipe_serializer.data)
+
+    def test_create_recipe(self):
+        "Test recipe created successfully"
+        payload = {
+            "title": "sample title",
+            "time_minutes": Decimal(7.5),
+            "price": Decimal("199.99"),
+            "description": "sample description",
+            "link": "www.example.com",
+        }
+        res = self.client.post(RECIPE_LIST_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipe = Recipe.objects.get(id=res.data["id"])
+        for k, v in payload.items():
+            self.assertEqual(getattr(recipe, k), v)
+        self.assertEqual(recipe.user, self.user)
+
+    def test_partial_update_recipe(self):
+        """Test recipe partial update successfully"""
+        original_price = Decimal("100.99")
+        recipe = create_recipe(user=self.user, price=original_price)
+        payload = {
+            "title": "new title",
+            "description": "new description",
+        }
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload)
+
+        recipe.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        for k, v in payload.items():
+            self.assertEqual(getattr(recipe, k), v)
+        self.assertEqual(recipe.price, original_price)
+        self.assertEqual(recipe.user, self.user)
+
+    def test_full_update_recipe(self):
+        """Test recipe entire update"""
+        recipe = create_recipe(user=self.user)
+        payload = {
+            "description": "new description",
+        }
+        url = get_detail_url(recipe.id)
+        res = self.client.put(url, payload)
+
+        recipe.refresh_from_db()
+        # Asserting partial payload raises error
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        for k, v in payload.items():
+            self.assertNotEqual(getattr(recipe, k), v)
+        self.assertEqual(recipe.user, self.user)
+
+    def test_delete_recipe(self):
+        """Test recipe deleting"""
+        recipe = create_recipe(user=self.user)
+        url = get_detail_url(recipe.id)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        recipe_exists = Recipe.objects.filter(id=recipe.id).exists()
+        self.assertFalse(recipe_exists)
+
+    def test_delete_other_user_recipe_error(self):
+        """Test deleting other user's recipe gives error"""
+        other_user = get_user_model().objects.create_user(
+            email="otheruser@example.com",
+            password="test123",
+            name="otheruser",
+        )
+        recipe = create_recipe(user=other_user)
+        url = get_detail_url(recipe.id)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Recipe.objects.filter(id=recipe.id).exists())

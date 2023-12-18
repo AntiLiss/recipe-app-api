@@ -45,8 +45,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Recipe(models.Model):
     title = models.CharField(max_length=255)
-    time_minutes = models.DecimalField(max_digits=5, decimal_places=1)
-    price = models.DecimalField(max_digits=5, decimal_places=2)
+    time_minutes = models.DecimalField(max_digits=4, decimal_places=1)
+    price = models.DecimalField(max_digits=7, decimal_places=2)
     description = models.TextField(blank=True)
     user = models.ForeignKey(to=get_user_model(), on_delete=models.CASCADE)
     link = models.CharField(max_length=255, blank=True)
