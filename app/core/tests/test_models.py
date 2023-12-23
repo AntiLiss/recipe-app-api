@@ -2,7 +2,7 @@
 from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from .. import models
+from core import models
 
 
 class ModelTests(TestCase):
@@ -56,7 +56,16 @@ class ModelTests(TestCase):
             description="Sample description",
         )
 
-        recipe_exists = models.Recipe.objects.filter(pk=recipe.id).exists()
+        recipe_exists = models.Recipe.objects.filter(id=recipe.id).exists()
         self.assertTrue(recipe_exists)
         # I think don't need this one
         # self.assertEqual(str(recipe), recipe.title)
+
+    # Tags
+    def test_create_tag_successfully(self):
+        user = get_user_model().objects.create_user(
+            email="test@example.com",
+            password="test123",
+        )
+        tag = models.Tag.objects.create(name="my_tag", user=user)
+        self.assertEqual(str(tag), tag.name)

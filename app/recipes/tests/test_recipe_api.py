@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
-from core.models import Recipe
+from core.models import Recipe, Tag
 from recipes.serializers import RecipeSerializer, RecipeDetailSerializer
 
 RECIPE_LIST_URL = reverse("recipes:recipe-list")
@@ -23,7 +23,6 @@ def create_recipe(user, **fields):
         "link": "www.example.com",
     }
     default_fields.update(**fields)
-
     return Recipe.objects.create(user=user, **default_fields)
 
 
@@ -33,7 +32,7 @@ class PublicRecipeAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def test_auth_required(self):
+    def test_authorization_required(self):
         """Test authorization is required to call API"""
         res = self.client.get(RECIPE_LIST_URL)
 
@@ -57,7 +56,7 @@ class PrivateRecipeAPITests(TestCase):
         create_recipe(user=self.user)
 
         res = self.client.get(RECIPE_LIST_URL)
-        recipes = Recipe.objects.all()  # .order_by("-id")
+        recipes = Recipe.objects.all().order_by("id")
         recipe_serializer = RecipeSerializer(instance=recipes, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
@@ -74,7 +73,7 @@ class PrivateRecipeAPITests(TestCase):
         create_recipe(user=other_user)
 
         res = self.client.get(RECIPE_LIST_URL)
-        recipes = Recipe.objects.filter(user=self.user)  # .order_by("-id")
+        recipes = Recipe.objects.filter(user=self.user).order_by("id")
         recipe_serializer = RecipeSerializer(instance=recipes, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
@@ -97,7 +96,6 @@ class PrivateRecipeAPITests(TestCase):
             "time_minutes": Decimal(7.5),
             "price": Decimal("199.99"),
             "description": "sample description",
-            "link": "www.example.com",
         }
         res = self.client.post(RECIPE_LIST_URL, payload)
 
@@ -164,3 +162,50 @@ class PrivateRecipeAPITests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Recipe.objects.filter(id=recipe.id).exists())
+
+    def test_create_recipe_with_new_tags(self):
+        """Test creating recipe with new tags"""
+        payload = {
+            "title": "sample title",
+            "time_minutes": Decimal("7.5"),
+            "price": Decimal("199.99"),
+            "tags": [{"name": "tag1"}, {"name": "tag2"}],
+        }
+        res = self.client.post(RECIPE_LIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipes = Recipe.objects.filter(id=res.data["id"])
+        self.assertTrue(recipes.exists())
+        recipe = recipes[0]
+        self.assertEqual(recipe.tags.count(), len(payload["tags"]))
+        for tag in payload["tags"]:
+            tag_exists = Tag.objects.filter(
+                name=tag["name"],
+                user=self.user,
+            ).exists()
+            self.assertTrue(tag_exists)
+
+    def test_create_recipe_with_existing_tags(self):
+        """Test creating recipe with already existing tags"""
+        tag_dinner = Tag.objects.create(name="dinner", user=self.user)
+        payload = {
+            "title": "sample title",
+            "time_minutes": Decimal("7.5"),
+            "price": Decimal("199.99"),
+            "tags": [{"name": "dinner"}, {"name": "georgian"}],
+        }
+        res = self.client.post(RECIPE_LIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipes = Recipe.objects.filter(id=res.data["id"])
+        self.assertTrue(recipes.exists())
+        recipe = recipes[0]
+        self.assertIn(tag_dinner, recipe.tags.all())
+        self.assertEqual(recipe.tags.count(), len(payload["tags"]))
+        for tag in payload["tags"]:
+            tag_count = Tag.objects.filter(
+                name=tag["name"],
+                user=self.user,
+            ).count()
+            # Assert no recreation of existing tag
+            self.assertTrue(tag_count, 1)

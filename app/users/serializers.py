@@ -19,7 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
         """Update and return user with encrypted password"""
         password = validated_data.pop("password", None)
         user = super().update(instance, validated_data)
-        # Updating password separately to hash it
+        # Update password separately to hash it
         if password:
             user.set_password(password)
             user.save()
