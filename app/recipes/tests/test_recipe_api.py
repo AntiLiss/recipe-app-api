@@ -100,7 +100,9 @@ class PrivateRecipeAPITests(TestCase):
         res = self.client.post(RECIPE_LIST_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        recipe = Recipe.objects.get(id=res.data["id"])
+        recipes = Recipe.objects.filter(id=res.data["id"])
+        self.assertTrue(recipes.exists())
+        recipe = recipes[0]
         for k, v in payload.items():
             self.assertEqual(getattr(recipe, k), v)
         self.assertEqual(recipe.user, self.user)
@@ -180,8 +182,8 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(recipe.tags.count(), len(payload["tags"]))
         for tag in payload["tags"]:
             tag_exists = Tag.objects.filter(
-                name=tag["name"],
                 user=self.user,
+                **tag,
             ).exists()
             self.assertTrue(tag_exists)
 
@@ -204,8 +206,8 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(recipe.tags.count(), len(payload["tags"]))
         for tag in payload["tags"]:
             tag_count = Tag.objects.filter(
-                name=tag["name"],
                 user=self.user,
+                **tag,
             ).count()
             # Assert no recreation of existing tag
             self.assertTrue(tag_count, 1)
