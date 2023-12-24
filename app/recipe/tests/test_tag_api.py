@@ -4,14 +4,14 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APIClient
 from core.models import Tag
-from recipes.serializers import TagSerializer
+from recipe.serializers import TagSerializer
 
-TAG_LIST_URL = reverse("recipes:tag-list")
+TAG_LIST_URL = reverse("recipe:tag-list")
 
 
 def get_detail_url(tag_id):
     """Create and return a tag detail url"""
-    return reverse("recipes:tag-detail", kwargs={"pk": tag_id})
+    return reverse("recipe:tag-detail", kwargs={"pk": tag_id})
 
 
 def create_tag(user, **fields):
@@ -44,15 +44,6 @@ class PrivateTagAPITests(TestCase):
         self.user = create_user()
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
-
-    # def test_create_tag(self):
-    #     payload = {"name": "mytag"}
-    #     res = self.client.post(TAG_LIST_URL, payload)
-
-    #     self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-    #     tag = Tag.objects.get(id=res.data["id"])
-    #     self.assertEqual(tag.name, payload["name"])
-    #     self.assertEqual(tag.user, self.user)
 
     def test_retrieve_tag(self):
         """Test retrieving a tag"""

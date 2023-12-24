@@ -2,16 +2,17 @@ from decimal import Decimal
 from django.urls import reverse
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 from core.models import Recipe, Tag
-from recipes.serializers import RecipeSerializer, RecipeDetailSerializer
+from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
+from .test_tag_api import create_tag
 
-RECIPE_LIST_URL = reverse("recipes:recipe-list")
+RECIPE_LIST_URL = reverse("recipe:recipe-list")
 
 
 def get_detail_url(recipe_id):
-    return reverse("recipes:recipe-detail", kwargs={"pk": recipe_id})
+    return reverse("recipe:recipe-detail", kwargs={"pk": recipe_id})
 
 
 def create_recipe(user, **fields):
@@ -181,20 +182,23 @@ class PrivateRecipeAPITests(TestCase):
         recipe = recipes[0]
         self.assertEqual(recipe.tags.count(), len(payload["tags"]))
         for tag in payload["tags"]:
-            tag_exists = Tag.objects.filter(
+            tag_obj = Tag.objects.filter(
                 user=self.user,
                 **tag,
-            ).exists()
-            self.assertTrue(tag_exists)
+            )
+            self.assertTrue(tag_obj.exists())
+            self.assertIn(tag_obj[0], recipe.tags.all())
 
-    def test_create_recipe_with_existing_tags(self):
-        """Test creating recipe with already existing tags"""
-        tag_dinner = Tag.objects.create(name="dinner", user=self.user)
+    def test_create_recipe_with_existing_tag(self):
+        """Test creating recipe with already existing tag"""
+        tag_dinner = create_tag(user=self.user, name="dinner")
         payload = {
             "title": "sample title",
             "time_minutes": Decimal("7.5"),
             "price": Decimal("199.99"),
-            "tags": [{"name": "dinner"}, {"name": "georgian"}],
+            "tags": [
+                {"name": "dinner"},  # this must use `tag_dinner`
+            ],
         }
         res = self.client.post(RECIPE_LIST_URL, payload, format="json")
 
@@ -202,12 +206,81 @@ class PrivateRecipeAPITests(TestCase):
         recipes = Recipe.objects.filter(id=res.data["id"])
         self.assertTrue(recipes.exists())
         recipe = recipes[0]
+        # Assert exactly `tag_dinner` was assigned
         self.assertIn(tag_dinner, recipe.tags.all())
         self.assertEqual(recipe.tags.count(), len(payload["tags"]))
+        tag_dinner_count = Tag.objects.filter(
+            user=self.user,
+            name=tag_dinner.name,
+        ).count()
+        # Assert no recreation of existing tag
+        self.assertEqual(tag_dinner_count, 1)
+
+    def test_create_new_tags_on_update(self):
+        """Test create and assign new tags when updating recipe"""
+        recipe = create_recipe(user=self.user)
+        payload = {
+            "tags": [{"name": "italian"}, {"name": "pizza"}],
+        }
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
         for tag in payload["tags"]:
-            tag_count = Tag.objects.filter(
-                user=self.user,
-                **tag,
-            ).count()
-            # Assert no recreation of existing tag
-            self.assertTrue(tag_count, 1)
+            added_tags = Tag.objects.filter(user=self.user, **tag)
+            self.assertTrue(added_tags.exists())
+            added_tag = added_tags[0]
+            self.assertIn(added_tag, recipe.tags.all())
+
+    def test_assign_existing_tag_on_update(self):
+        """Test assign already existing tag when updating recipe"""
+        tag_lunch = create_tag(user=self.user, name="lunch")
+        recipe = create_recipe(user=self.user)
+
+        payload = {"tags": [{"name": "lunch"}]}
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tag_lunch, recipe.tags.all())
+        tag_lunch_count = Tag.objects.filter(
+            user=self.user,
+            name=tag_lunch.name,
+        ).count()
+        self.assertEqual(tag_lunch_count, 1)
+
+    def test_reassign_recipe_tags_on_update(self):
+        """Test reassigning tags when recipe update"""
+        original_tag = create_tag(user=self.user, name="original tag")
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(original_tag)
+
+        new_tag = create_tag(user=self.user, name="new tag")
+        payload = {"tags": [{"name": "new tag"}]}
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # We've reassigned `tags` field, so now recipe.tags must include
+        # only tag from payload
+        self.assertEqual(recipe.tags.count(), 1)
+        self.assertNotIn(original_tag, recipe.tags.all())
+        self.assertIn(new_tag, recipe.tags.all())
+        new_tag_count = Tag.objects.filter(
+            user=self.user,
+            name=new_tag.name,
+        ).count()
+        self.assertEqual(new_tag_count, 1)
+
+    def test_clear_recipe_tags(self):
+        """Test removing recipe tags when recipe update"""
+        tag = create_tag(user=self.user, name="sample tag")
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(tag)
+
+        payload = {"tags": []}
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.tags.count(), 0)

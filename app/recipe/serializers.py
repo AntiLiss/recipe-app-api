@@ -18,14 +18,32 @@ class RecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def create(self, validated_data):
+        """Create recipe with tags"""
         tags = validated_data.pop("tags", [])
         recipe = Recipe.objects.create(**validated_data)
-        user = self.context["request"].user
+        # (Create) and assign tags separately
+        if tags:
+            user = self.context["request"].user
         for tag in tags:
             tag_obj, created = Tag.objects.get_or_create(user=user, **tag)
             recipe.tags.add(tag_obj)
-        # .add() automatically saves changes, so no need to call .save()
+        # .add() auto saves changes, so no need to call .save()
         return recipe
+
+    def update(self, instance, validated_data):
+        """Update recipe with tags"""
+        tags = validated_data.pop("tags", None)
+        super().update(instance, validated_data)
+        # (Create) and assign tags separately
+        # Check is there even `tags` field in validated_data
+        if tags is not None:
+            user = self.context["request"].user
+            # .clear() auto saves changes, so no need to call .save()
+            instance.tags.clear()
+            for tag in tags:
+                tag_obj, created = Tag.objects.get_or_create(user=user, **tag)
+                instance.tags.add(tag_obj)
+        return instance
 
 
 class RecipeDetailSerializer(RecipeSerializer):
