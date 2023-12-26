@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import Recipe, Tag
+from core.models import Recipe, Tag, Ingredient
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -16,6 +16,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         model = Recipe
         fields = ["id", "title", "time_minutes", "price", "link", "tags"]
         read_only_fields = ["id"]
+
+
+class RecipeDetailSerializer(RecipeSerializer):
+    class Meta(RecipeSerializer.Meta):
+        fields = RecipeSerializer.Meta.fields + ["description"]
 
     def create(self, validated_data):
         """Create recipe with tags"""
@@ -46,6 +51,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         return instance
 
 
-class RecipeDetailSerializer(RecipeSerializer):
-    class Meta(RecipeSerializer.Meta):
-        fields = RecipeSerializer.Meta.fields + ["description"]
+class IngredientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ingredient
+        fields = ["id", "name"]
+        read_only_fields = ["id"]

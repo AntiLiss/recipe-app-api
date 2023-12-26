@@ -1,12 +1,16 @@
-from rest_framework import viewsets, mixins, generics
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets, mixins
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.authtoken.models import Token
-from core.models import Recipe, Tag
-from .serializers import RecipeSerializer, RecipeDetailSerializer, TagSerializer
+from core.models import Recipe, Tag, Ingredient
+from .serializers import (
+    RecipeSerializer,
+    RecipeDetailSerializer,
+    TagSerializer,
+    IngredientSerializer,
+)
 
 
 # Recipes
@@ -48,15 +52,37 @@ class TagViewSet(
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user).order_by("id")
 
-    # Set `user` = request.user by default
-    def perform_create(self, serializer):
-        return serializer.save(user=self.request.user)
-
     # Override deletion to return deleted tag in response
     def destroy(self, request, pk):
         tag = Tag.objects.get(id=pk)
         serializer = TagSerializer(instance=tag)
-        # Need to access serializer.data cuz otherwise `id` == None
-        foobar = serializer.data
+        # Need to access serializer.data before tag delete
+        # cuz otherwise `id` == None
+        data = serializer.data
         tag.delete()
-        return Response(data=serializer.data, status=status.HTTP_204_NO_CONTENT)
+        return Response(data=data, status=status.HTTP_204_NO_CONTENT)
+
+
+# Ingredients
+class IngredientViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    serializer_class = IngredientSerializer
+    queryset = Ingredient.objects.all()
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user).order_by("id")
+
+    def destroy(self, request, pk):
+        """Delete item and return it in response"""
+        ingredient = get_object_or_404(Ingredient, pk=pk)
+        serializer = self.serializer_class(ingredient)
+        data = serializer.data
+        ingredient.delete()
+        return Response(data, status.HTTP_204_NO_CONTENT)

@@ -4,9 +4,10 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APIClient
-from core.models import Recipe, Tag
+from core.models import Recipe, Tag, Ingredient
 from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
 from .test_tag_api import create_tag
+from .test_ingredient_api import create_ingredient
 
 RECIPE_LIST_URL = reverse("recipe:recipe-list")
 
@@ -284,3 +285,53 @@ class PrivateRecipeAPITests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(recipe.tags.count(), 0)
+
+    def test_create_recipe_with_new_ingredients(self):
+        """Test creating recipe with new ingredients"""
+        payload = {
+            "title": "sample title",
+            "time_minutes": Decimal(7.5),
+            "price": Decimal("199.99"),
+            "ingredients": [
+                {"name": "carrot"},
+                {"name": "tomato"},
+            ],
+        }
+        res = self.client.post(RECIPE_LIST_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipe = Recipe.objects.filter(id=res.data["id"])
+        self.assertTrue(recipe.exists())
+        self.assertEqual(
+            recipe[0].ingredients.count(),
+            len(payload["ingredients"]),
+        )
+        for ing in payload["ingredients"]:
+            ingredient = Ingredient.objects.filter(user=self.user, **ing)
+            self.assertTrue(ingredient.exists())
+            self.assertIn(ingredient[0], recipe[0].ingredients.all())
+
+    def test_create_recipe_with_existing_ingredient(self):
+        """Test creating recipe with already existing ingredient"""
+        ingredient_carrot = create_ingredient(
+            user=self.user,
+            name="carrot",
+        )
+        payload = {
+            "title": "sample title",
+            "time_minutes": Decimal(7.5),
+            "price": Decimal("199.99"),
+            "ingredients": [{"name": "carrot"}],
+        }
+        res = self.client.post(RECIPE_LIST_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipe = Recipe.objects.filter(id=res.data["id"])
+        self.assertTrue(recipe.exists())
+        self.assertEqual(recipe[0].ingredients.count(), 1)
+        self.assertIn(ingredient_carrot, recipe[0].ingredients.all())
+        ingredients = Ingredient.objects.filter(
+            user=self.user,
+            name=ingredient_carrot.name,
+        )
+        self.assertEqual(ingredients.count(), 1)
