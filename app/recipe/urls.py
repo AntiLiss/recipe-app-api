@@ -11,5 +11,4 @@ router.register("ingredients", views.IngredientViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
-    # path("tags/", views.TagsAPIView.as_view(), name="tag-list"),
 ]

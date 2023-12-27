@@ -50,8 +50,8 @@ class Recipe(models.Model):
     description = models.TextField(blank=True)
     user = models.ForeignKey(to=get_user_model(), on_delete=models.CASCADE)
     link = models.CharField(max_length=255, blank=True)
-    tags = models.ManyToManyField(to="Tag", blank=True)
-    ingredients = models.ManyToManyField(to="Ingredient", blank=True)
+    tags = models.ManyToManyField(to="Tag")
+    ingredients = models.ManyToManyField(to="Ingredient")
 
     def __str__(self):
         return self.title

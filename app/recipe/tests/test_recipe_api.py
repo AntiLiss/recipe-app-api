@@ -297,7 +297,7 @@ class PrivateRecipeAPITests(TestCase):
                 {"name": "tomato"},
             ],
         }
-        res = self.client.post(RECIPE_LIST_URL)
+        res = self.client.post(RECIPE_LIST_URL, payload, format="json")
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         recipe = Recipe.objects.filter(id=res.data["id"])
@@ -323,7 +323,7 @@ class PrivateRecipeAPITests(TestCase):
             "price": Decimal("199.99"),
             "ingredients": [{"name": "carrot"}],
         }
-        res = self.client.post(RECIPE_LIST_URL, payload)
+        res = self.client.post(RECIPE_LIST_URL, payload, format="json")
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         recipe = Recipe.objects.filter(id=res.data["id"])
@@ -335,3 +335,48 @@ class PrivateRecipeAPITests(TestCase):
             name=ingredient_carrot.name,
         )
         self.assertEqual(ingredients.count(), 1)
+
+    def test_create_new_ingredients_on_update(self):
+        """Test creating and setting ingredients when recipe update"""
+        recipe = create_recipe(user=self.user)
+        payload = {"ingredients": [{"name": "potato"}]}
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.ingredients.count(), 1)
+        for ing in payload["ingredients"]:
+            ing_obj = Ingredient.objects.filter(user=self.user, **ing)
+            self.assertTrue(ing_obj.exists())
+            self.assertIn(ing_obj[0], recipe.ingredients.all())
+
+    def test_assign_existing_ingredients_on_update(self):
+        """Test setting already existing ingredient when recipe update"""
+        recipe = create_recipe(user=self.user)
+        ingredient_tomato = create_ingredient(user=self.user, name="tomato")
+        payload = {"ingredients": [{"name": "tomato"}]}
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.ingredients.count(), 1)
+        self.assertIn(ingredient_tomato, recipe.ingredients.all())
+        ingredient_tomato_count = Ingredient.objects.filter(
+            user=self.user,
+            name=ingredient_tomato.name,
+        ).count()
+        self.assertEqual(ingredient_tomato_count, 1)
+
+    def test_clear_ingredients(self):
+        """Test removing all ingredients when recipe update"""
+        ingredient_1 = create_ingredient(user=self.user)
+        ingredient_2 = create_ingredient(user=self.user)
+        recipe = create_recipe(user=self.user)
+        recipe.ingredients.add(ingredient_1, ingredient_2)
+
+        payload = {"ingredients": []}
+        url = get_detail_url(recipe.id)
+        res = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.ingredients.count(), 0)

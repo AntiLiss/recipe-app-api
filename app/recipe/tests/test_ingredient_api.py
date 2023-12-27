@@ -20,7 +20,7 @@ def create_ingredient(user, name="sample ingredient"):
 
 
 class PublicIngredientAPITests(TestCase):
-    """Test for unauthenticated api requests"""
+    """Tests for unauthenticated api requests"""
 
     def setUp(self):
         self.client = APIClient()

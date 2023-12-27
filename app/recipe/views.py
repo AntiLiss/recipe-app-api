@@ -35,22 +35,29 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
-# Tags
-class TagViewSet(
+class BaseRecipeAttrViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
+    """Base viewset for recipe attributes"""
+
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
-    serializer_class = TagSerializer
-    queryset = Tag.objects.all()
 
-    # Limit tags to authenticated user
+    # Limit queryset to authenticated user
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user).order_by("id")
+
+
+# Tags
+class TagViewSet(BaseRecipeAttrViewSet):
+    """Manage tags"""
+
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
 
     # Override deletion to return deleted tag in response
     def destroy(self, request, pk):
@@ -64,20 +71,11 @@ class TagViewSet(
 
 
 # Ingredients
-class IngredientViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.ListModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+class IngredientViewSet(BaseRecipeAttrViewSet):
+    """Manage ingredients"""
+
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.all()
-
-    def get_queryset(self):
-        return self.queryset.filter(user=self.request.user).order_by("id")
 
     def destroy(self, request, pk):
         """Delete item and return it in response"""
