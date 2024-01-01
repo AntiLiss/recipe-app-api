@@ -1,4 +1,5 @@
 """Tests for models"""
+from unittest.mock import patch
 from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth import get_user_model
@@ -62,6 +63,15 @@ class ModelTests(TestCase):
         self.assertTrue(recipe_exists)
         # I think don't need this one
         # self.assertEqual(str(recipe), recipe.title)
+
+    @patch("core.models.uuid.uuid4")
+    def test_recipe_filename_uuid(self, mock_uuid):
+        """Test generating image path"""
+        uuid = "test-uuid"
+        mock_uuid.return_value = uuid
+        file_path = models.generate_recipe_image_path(None, "example.jpg")
+
+        self.assertEqual(file_path, f"uploads/recipe/{uuid}.jpg")
 
     # Tags
     def test_create_tag_successfully(self):

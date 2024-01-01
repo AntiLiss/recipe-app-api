@@ -1,3 +1,5 @@
+import uuid
+import os
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import (
@@ -5,6 +7,13 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+
+
+def generate_recipe_image_path(instance, filename):
+    """Generate file path for new recipe image"""
+    extension = os.path.splitext(filename)[1]
+    filename = f"{uuid.uuid4()}{extension}"
+    return os.path.join("uploads", "recipe", filename)
 
 
 class UserManager(BaseUserManager):
@@ -52,6 +61,7 @@ class Recipe(models.Model):
     link = models.CharField(max_length=255, blank=True)
     tags = models.ManyToManyField(to="Tag")
     ingredients = models.ManyToManyField(to="Ingredient")
+    image = models.ImageField(null=True, upload_to=generate_recipe_image_path)
 
     def __str__(self):
         return self.title

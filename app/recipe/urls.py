@@ -11,4 +11,5 @@ router.register("ingredients", views.IngredientViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("recipes/<int:pk>/", _, name="recipe-upload-image"),
 ]
