@@ -403,9 +403,9 @@ class ImageUploadTests(TestCase):
         self.client.force_authenticate(user=self.user)
         self.recipe = create_recipe(user=self.user)
 
-    # TODO Check is this necessary
-    # def tearDown(self):
-    #     self.recipe.image.delete()
+    # I guess this ain't necessary
+    def tearDown(self):
+        self.recipe.image.delete()
 
     def test_upload_image(self):
         """Test uploading image to recipe"""

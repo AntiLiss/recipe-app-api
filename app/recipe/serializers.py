@@ -2,6 +2,7 @@ from rest_framework import serializers
 from core.models import Recipe, Tag, Ingredient
 from rest_framework.serializers import Serializer
 
+
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
@@ -29,7 +30,7 @@ class RecipeDetailSerializer(RecipeSerializer):
     ingredients = IngredientSerializer(many=True, required=False)
 
     class Meta(RecipeSerializer.Meta):
-        fields = RecipeSerializer.Meta.fields + ["description", "ingredients"]
+        fields = RecipeSerializer.Meta.fields + ["description", "ingredients", "image"]
 
     def _assign_tags(self, tags, recipe):
         """Get or create and then assign tags to recipe"""
@@ -73,3 +74,15 @@ class RecipeDetailSerializer(RecipeSerializer):
             self._assign_ingredients(ingredients, instance)
 
         return instance
+
+
+class RecipeImageSerializer(serializers.ModelSerializer):
+    """Serializer for uploading images to recipe"""
+
+    class Meta:
+        model = Recipe
+        fields = ["id", "image"]
+        read_only_fields = ["id"]
+        # Set explicitly `image` field required cuz in model
+        # it is blank=True so that recipe can be created without it
+        extra_kwargs = {"image": {"required": True}}
